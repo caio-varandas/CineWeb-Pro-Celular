@@ -1,14 +1,26 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsOptional } from 'class-validator';
+import { IsArray, IsNumber, IsOptional } from 'class-validator';
+
+export class IngressoDto {
+  posicao!: string;
+  tipo!: string;
+}
+
+export class LanchePedidoDto {
+  lancheId!: number | string;
+  quantidade!: number;
+}
 
 export class CreatePedidoDto {
-  @ApiProperty({ example: [1, 2], description: 'Lista de IDs dos Ingressos', required: false })
-  @IsArray()
-  @IsOptional()
-  ingressosIds?: number[];
+  @IsNumber()
+  sessaoId!: number;
 
-  @ApiProperty({ example: [1], description: 'Lista de IDs dos Lanches ou Combos', required: false })
+  @IsArray()
+  ingressos!: IngressoDto[];
+
   @IsArray()
   @IsOptional()
-  lanchesIds?: number[];
+  lanches?: LanchePedidoDto[];
+
+  @IsNumber()
+  valorTotal!: number;
 }

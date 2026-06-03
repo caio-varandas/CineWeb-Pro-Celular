@@ -57,16 +57,55 @@ export class SessoesService {
     return sessao;
   }
 
-  update(id: number, updateSessoeDto: UpdateSessoeDto) {
-    return this.prisma.sessao.update({
-      where: { id },
-      data: updateSessoeDto,
-    });
+  async update(id: number, updateSessoeDto: UpdateSessoeDto) {
+    const atual = await this.prisma.sessao.findUnique({ where: { id }, include: { filme: true } });
+    if (!atual) throw new NotFoundException(`Sessão ${id} não encontrada.`);
+
+    if (updateSessoeDto.dataHorario || updateSessoeDto.salaId || updateSessoeDto.filmeId) {
+      const filmeId = updateSessoeDto.filmeId ?? atual.filmeId;
+      const salaId = updateSessoeDto.salaId ?? atual.salaId;
+      const dataHorario = updateSessoeDto.dataHorario ?? atual.dataHorario;
+
+      const filme = await this.prisma.filme.findUnique({ where: { id: filmeId } });
+      if (!filme) throw new NotFoundException('Filme não encontrado.');
+
+      const novoInicio = new Date(dataHorario).getTime();
+      const novoFim = novoInicio + filme.duracao * 60000;
+
+      const sessoesDaSala = await this.prisma.sessao.findMany({
+        where: { salaId, NOT: { id } },
+        include: { filme: true },
+      });
+
+      const conflito = sessoesDaSala.find((s) => {
+        const inicio = s.dataHorario.getTime();
+        const fim = inicio + s.filme.duracao * 60000;
+        return novoInicio < fim && novoFim > inicio;
+      });
+
+      if (conflito) {
+        throw new BadRequestException('Conflito de horário com outra sessão na mesma sala.');
+      }
+    }
+
+    return this.prisma.sessao.update({ where: { id }, data: updateSessoeDto });
   }
 
-  remove(id: number) {
-    return this.prisma.sessao.delete({
-      where: { id },
+  async remove(id: number) {
+  // 1. deleta todos os ingressos da sessão
+  await this.prisma.ingresso.deleteMany({
+    where: { sessaoId: id }
+  });
+
+  // 2. agora deleta a sessão
+  return this.prisma.sessao.delete({
+    where: { id }
+  });
+}
+
+  async buscarIngressosVendidos(sessaoId: number) {
+    return this.prisma.ingresso.findMany({
+      where: { sessaoId: sessaoId },
     });
   }
 }

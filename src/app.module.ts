@@ -10,9 +10,21 @@ import { SessoesModule } from './sessoes/sessoes.module';
 import { IngressosModule } from './ingressos/ingressos.module';
 import { LanchesCombosModule } from './lanches-combos/lanches-combos.module';
 import { PedidosModule } from './pedidos/pedidos.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [PrismaModule, UsersModule, GenerosModule, FilmesModule, SalasModule, SessoesModule, IngressosModule, LanchesCombosModule, PedidosModule],
+  imports: [
+    PrismaModule,
+    UsersModule,
+    AuthModule,
+    GenerosModule,
+    FilmesModule,
+    SalasModule,
+    SessoesModule,
+    IngressosModule,
+    LanchesCombosModule,
+    PedidosModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

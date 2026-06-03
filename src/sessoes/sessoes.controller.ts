@@ -38,4 +38,12 @@ export class SessoesController {
   remove(@Param('id') id: string) {
     return this.sessoesService.remove(+id);
   }
+
+  // Adicione isso no seu Controller:
+  // Adicione esta rota nova dentro da classe SessoesController
+  @Get(':id/ingressos')
+  buscarIngressos(@Param('id') id: string) {
+    // O sinal de + transforma a string em número (igual o Number(id))
+    return this.sessoesService.buscarIngressosVendidos(+id);
+  }
 }

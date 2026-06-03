@@ -18,8 +18,10 @@ model User {
   email String @unique
   name String?
   password String
+  resetToken String?
+  resetTokenExpires DateTime?
   createdAt DateTime @default(now())
-  updateAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 }
 
 model Genero {
@@ -62,6 +64,7 @@ model Ingresso {
   pedidoId  Int?    // Opcional, pois pode ser atrelado a um pedido depois
   tipo      String  // Ex: "Inteira", "Meia"
   valorPago Float
+  posicao   String
   sessao    Sessao  @relation(fields: [sessaoId], references: [id])
   pedido    Pedido? @relation(fields: [pedidoId], references: [id])
 }

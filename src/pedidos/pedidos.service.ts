@@ -8,51 +8,56 @@ export class PedidosService {
   constructor(private prisma: PrismaService) {}
 
   async create(createPedidoDto: CreatePedidoDto) {
-    const ingressosIds = createPedidoDto.ingressosIds || [];
-    const lanchesIds = createPedidoDto.lanchesIds || [];
+    const { sessaoId, ingressos, lanches, valorTotal } = createPedidoDto;
 
-    if (ingressosIds.length === 0 && lanchesIds.length === 0) {
+    // 1. Validação: O pedido não pode estar vazio
+    if ((!ingressos || ingressos.length === 0) && (!lanches || lanches.length === 0)) {
       throw new BadRequestException('O pedido precisa ter pelo menos um ingresso ou lanche.');
     }
 
-    let valorTotalCalculado = 0;
-    
-    const ingressosParaConectar: { id: number }[] = [];
-    const lanchesParaConectar: { id: number }[] = [];
+    // 2. Busca a Sessão no banco para confirmar que existe e pegar o valor do ingresso
+    const sessao = await this.prisma.sessao.findUnique({
+      where: { id: sessaoId }
+    });
 
-    //calcula total de ingressos
-    if (ingressosIds.length > 0) {
-      const ingressos = await this.prisma.ingresso.findMany({
-        where: { id: { in: ingressosIds } },
-      });
-      
-      ingressos.forEach(ing => valorTotalCalculado += ing.valorPago);
-      ingressosParaConectar.push(...ingressosIds.map(id => ({ id })));
-    }
+    if (!sessao) throw new NotFoundException('Sessão não encontrada.');
 
-    //calcula o total dos lanches
-    if (lanchesIds.length > 0) {
-      const lanches = await this.prisma.lancheCombo.findMany({
-        where: { id: { in: lanchesIds } },
-      });
-      
-      lanches.forEach(lanche => valorTotalCalculado += lanche.preco);
-      lanchesParaConectar.push(...lanchesIds.map(id => ({ id })));
-    }
+    // 3. Prepara os lanches para salvar (caso o usuário tenha comprado)
+    const lanchesParaConectar = lanches && lanches.length > 0
+      ? lanches.map(l => ({ id: Number(l.lancheId) }))
+      : [];
 
+    // 4. A TRANSAÇÃO ATÔMICA
+    // Salva o Pedido e os Ingressos de uma vez só!
     return this.prisma.pedido.create({
       data: {
-        valorTotal: valorTotalCalculado,
-        ingressos: { connect: ingressosParaConectar },
-        lanches: { connect: lanchesParaConectar },
+        valorTotal: valorTotal,
+        ingressos: {
+          create: ingressos.map(ing => ({
+            sessaoId: sessaoId,
+            posicao: ing.posicao,
+            tipo: ing.tipo,
+            // Calcula o valor: MEIA paga metade, INTEIRA paga inteiro
+            valorPago: ing.tipo === 'MEIA' ? (sessao.valorIngresso / 2) : sessao.valorIngresso
+          }))
+        },
+        lanches: {
+          connect: lanchesParaConectar
+        }
       },
       include: { ingressos: true, lanches: true }, 
     });
   }
 
+  // ============== MÉTODOS DE BUSCA ==============
+
   findAll() {
     return this.prisma.pedido.findMany({
-      include: { ingressos: true, lanches: true },
+      include: {
+        ingressos: { include: { sessao: { include: { filme: true, sala: true } } } },
+        lanches: true,
+      },
+      orderBy: { dataHora: 'desc' },
     });
   }
 
